@@ -1,0 +1,23 @@
+[package]
+name = "rxgrep"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+authors = ["48Labs"]
+description = "Reverse XML query: give it a string, get back the XPath queries that reach it"
+license = "MIT"
+repository = "https://github.com/48-Labs/rxgrep"
+homepage = "https://github.com/48-Labs/rxgrep"
+readme = "README.md"
+keywords = ["xml", "xpath", "grep", "search", "cli"]
+categories = ["command-line-utilities", "text-processing"]
+# Only what is needed to build and test; CI files, scripts and the logo stay on GitHub.
+include = ["/src", "/tests", "/examples/sample.xml", "/README.md", "/LICENSE"]
+
+[dependencies]
+# Intentionally empty: rxgrep is written in pure Rust using only the standard library.
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

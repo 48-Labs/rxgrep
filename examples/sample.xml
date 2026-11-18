@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE catalog>
+<!-- Sample data for rxgrep -->
+<catalog name="Acme Books" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <book id="bk101" lang="en">
+    <title>Rust in Action</title>
+    <author>Alice</author>
+    <price currency="USD">39.95</price>
+    <tags><tag>rust</tag><tag>systems</tag></tags>
+  </book>
+  <book id="bk102" lang="fr">
+    <title>XML &amp; You</title>
+    <author>Bob</author>
+    <editor>Alice</editor>
+    <price currency="EUR">25.00</price>
+    <tags><tag>xml</tag></tags>
+  </book>
+  <book id="bk103" lang="en">
+    <title><![CDATA[Data <Structures>]]></title>
+    <author>Carol</author>
+    <note>Reviewed by <b>Alice</b> in 2024</note>
+    <!-- TODO: Alice to confirm the price -->
+    <price currency="USD">45.00</price>
+  </book>
+  <dc:publisher>Acme Press</dc:publisher>
+  <events>
+    <event type="order"><payload>&lt;order&gt;&lt;customer&gt;Alice&lt;/customer&gt;&lt;total&gt;39.95&lt;/total&gt;&lt;/order&gt;</payload></event>
+  </events>
+</catalog>

@@ -1,0 +1,167 @@
+name: Release
+
+# Push a tag like `v0.1.0` (matching Cargo.toml) to build every target and
+# publish a GitHub Release with the zips. Running the workflow by hand
+# builds and uploads the zips as workflow artifacts only.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux: static musl binaries run on any distribution.
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+            arch: x86-64
+            native: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            arch: aarch64
+            native: true
+          # macOS: Apple Silicon runner, Intel cross-compiled on it.
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            arch: arm64
+            native: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            arch: x86_64
+            native: false
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches Cargo.toml version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="v$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          if [ "$TAG" != "$version" ]; then
+            echo "::error::tag $TAG does not match Cargo.toml version $version"
+            exit 1
+          fi
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --target "$TARGET"
+          rustup default stable
+
+      - name: Install musl tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools
+
+      - name: Build
+        run: cargo build --release --locked --target "$TARGET"
+
+      - name: Verify binary
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          bin="target/$TARGET/release/rxgrep"
+          info="$(file "$bin")"
+          echo "$info"
+          echo "$info" | grep -q "$ARCH" || { echo "::error::expected a $ARCH binary"; exit 1; }
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            echo "$info" | grep -Eq "statically linked|static-pie linked" \
+              || { echo "::error::Linux binary is not static"; exit 1; }
+          fi
+
+      - name: Smoke test
+        if: matrix.native
+        run: |
+          bin="target/$TARGET/release/rxgrep"
+          "$bin" --version
+          out="$("$bin" -n Alice examples/sample.xml)"
+          expected="$(printf '%s\n' '/catalog/book[1]/author' '/catalog/book[2]/editor' '/catalog/book[3]/note/b')"
+          test "$out" = "$expected" || { echo "unexpected output:"; echo "$out"; exit 1; }
+
+      - name: Package zip
+        run: scripts/package.sh "$TARGET"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rxgrep-${{ matrix.target }}
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: rxgrep-*
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          cat *.zip.sha256 > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          ls -l
+
+      - name: Create or update release
+        working-directory: dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" *.zip SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" *.zip SHA256SUMS --repo "$GITHUB_REPOSITORY" \
+              --title "rxgrep $TAG" --generate-notes
+          fi
+
+  crates-io:
+    name: Publish to crates.io
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Publish
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::warning::CARGO_REGISTRY_TOKEN secret is not set; skipping crates.io publish"
+            exit 0
+          fi
+          name="$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          if curl -sf -A "$name-release-workflow" "https://crates.io/api/v1/crates/$name/$version" > /dev/null; then
+            echo "$name $version is already on crates.io; nothing to do"
+            exit 0
+          fi
+          cargo publish --locked
