@@ -465,15 +465,11 @@ impl Regex {
             if clist.dense.is_empty() && (whole || i == n) {
                 break;
             }
-            for k in 0..clist.dense.len() {
-                let pc = clist.dense[k];
+            for &pc in &clist.dense {
                 let ok = match self.prog[pc] {
-                    Inst::Match => {
-                        if !whole || i == n {
-                            return true;
-                        }
-                        false
-                    }
+                    // A thread at the end of the program: a match, if the
+                    // match may end here (anywhere, or only at the end with `whole`).
+                    Inst::Match if !whole || i == n => return true,
                     Inst::Char(c) => i < n && (if self.icase { fold(chars[i]) } else { chars[i] }) == c,
                     Inst::Any => i < n && chars[i] != '\n',
                     Inst::Class(k) => i < n && self.classes[k].matches(chars[i], self.icase),

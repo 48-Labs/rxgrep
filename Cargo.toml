@@ -7,7 +7,6 @@ authors = ["48Labs"]
 description = "Reverse XML query: give it a string, get back the XPath queries that reach it"
 license = "MIT"
 repository = "https://github.com/48-Labs/rxgrep"
-homepage = "https://github.com/48-Labs/rxgrep"
 readme = "README.md"
 keywords = ["xml", "xpath", "grep", "search", "cli"]
 categories = ["command-line-utilities", "text-processing"]

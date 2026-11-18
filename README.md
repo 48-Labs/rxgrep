@@ -175,6 +175,11 @@ rxgrep -D ' | ' -r Alice books.xml      # /catalog/book[1]/author | Alice
 curl -s https://example.com/feed.xml | rxgrep -s Rust
 ```
 
+## Security
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability privately and to
+verify release downloads (`gh attestation verify`).
+
 ## Credits
 
 rxgrep is built by **48Labs**.

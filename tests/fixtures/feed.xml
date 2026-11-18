@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Namespaces: a default xmlns, a prefixed media: element, xml:lang, and an xmlns="" reset -->
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en">
+  <title>Acme Blog</title>
+  <entry>
+    <title>Hello Rust</title>
+    <link href="https://acme.example/rust" rel="alternate"/>
+    <media:thumbnail url="https://acme.example/r.png" width="120"/>
+    <author><name>Alice</name></author>
+  </entry>
+  <entry>
+    <title>Hello   XML</title>
+    <link href="https://acme.example/xml" rel="alternate"/>
+    <author><name>Bob</name></author>
+    <legacy xmlns=""><note>Mixed <b>bold</b> text, no namespace</note></legacy>
+  </entry>
+</feed>
